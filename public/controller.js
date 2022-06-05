@@ -9,9 +9,11 @@ const collection = "reaper";
 const contract_owner_name = "reaper";
 var userAccountName = "";
 
+// var offchain_server_uri = "http://45.84.0.218:5000";
+var offchain_server_uri = "http://localhost:5000";
 //45.84.0.218
 
-const dapp = "Weedborncounty";
+const dapp = "reaper";
 
   async function wallet_isAutoLoginAvailable() {
     const transport = new AnchorLinkBrowserTransport();
@@ -179,7 +181,7 @@ const dapp = "Weedborncounty";
     console.log("stop countdown ...");
   }
 
-  const stake = async (asset_id) => {
+  const stake = async (asset_id, type) => {
     
     console.log("in Javascript", asset_id);
 
@@ -188,11 +190,11 @@ const dapp = "Weedborncounty";
 
     console.log(parseInt(asset_id));
 
-    if (!wax.api || userAccountName == "") {
+    if (!wallet_session || userAccountName == "") {
       console.log('* Login first *');
     }
     try {
-        const result = await wax.api.transact({
+        const result = await wallet_session.transact({
             actions: [{
                 account: "atomicassets",
                 name: 'transfer',
@@ -204,7 +206,7 @@ const dapp = "Weedborncounty";
                     from: userAccountName,
                     to: contract_owner_name,
                     asset_ids: id_list,
-                    memo: 'Oil',
+                    memo: type,
                 },
             }]
         }, {
@@ -214,16 +216,17 @@ const dapp = "Weedborncounty";
         
         if(result) {
           startCountDown();
-	        // $.post("http://45.84.0.218:5000/reaper/stake",
-         //  {
-         //    name: userAccountName, 
-         //    asset_id: id_list,
-         //    memo : "Oil"
-         //  },
-         //  function(data,status){
+          $.post(offchain_server_uri+"/reaper/stake",
+          {
+            name: userAccountName, 
+            asset_id: id_list,
+            memo : type
+          },
+          function(data,status){
 
-         //  });
-	        setTimeout(function(){main(userAccountName)}, 1000);
+          });
+          stakeSuccess(asset_id, type);
+          setTimeout(function(){main(userAccountName)}, 1000);
         }
         else {
           console.log("result value is null, stake request faild!!!");
@@ -236,20 +239,20 @@ const dapp = "Weedborncounty";
     }
   }
 
-  const unstake = async (asset_id) => {
+  const unstake = async (asset_id, type) => {
     
-    console.log("in Javascript", asset_id);
+    console.log("in Javascript", asset_id, type);
 
     var id_list = [];
     id_list.push(parseInt(asset_id));
 
     console.log(parseInt(asset_id));
 
-    if (!wax.api || userAccountName == "") {
+    if (!wallet_session || userAccountName == "") {
       console.log('* Login first *');
     }
     try {
-        const result = await wax.api.transact({
+        const result = await wallet_session.transact({
             actions: [{
                 account: contract_owner_name,
                 name: 'unstake',
@@ -260,26 +263,28 @@ const dapp = "Weedborncounty";
                 data: {
                     username: userAccountName,
                     unstakeID: id_list,
-                    memo: 'Oil',
+                    memo: type,
                 },
             }]
         }, {
             blocksBehind: 3,
-            expireSeconds: 30
+            expireSeconds: 300
         });
         
         if(result) {
           stopCountDown();
-	        // $.post("http://45.84.0.218:5000/reaper/unstake",
-         //  {
-         //    name: userAccountName, 
-         //    asset_id: id_list,
-         //    memo : "Oil"
-         //  },
-         //  function(data,status){
+          $.post(offchain_server_uri+"/reaper/unstake",
+          {
+            name: userAccountName, 
+            asset_id: id_list,
+            memo : type
+          },
+          function(data,status){
 
-         //  });
-	        setTimeout(function(){main(userAccountName)}, 1000);
+          });
+          console.log("unstake success sned===========================================");
+          unStakeSuccess(asset_id, type);
+          setTimeout(function(){main(userAccountName)}, 1000);
         }
         else {
           console.log("result value is null, stake request faild!!!");
@@ -291,7 +296,46 @@ const dapp = "Weedborncounty";
     }
   }
 
-  const claim = async (asset_id) => {
+
+  const stakeSuccess = (asset_id, type = "Oil") => {
+    
+    let result = [];
+    var tmp = {};
+    tmp.asset_id = asset_id;
+    tmp.machine = type;
+    result.push(tmp);
+
+    console.log("from server ===>>>> ", result);
+
+    var msg = {"Items" : result};
+    
+    myGameInstance.SendMessage(
+      "EventManager",
+      "stakeSuccess",
+      JSON.stringify(msg)
+    );
+  }
+
+  const unStakeSuccess = (asset_id, type="Oil") => {
+
+    let result = [];
+    var tmp = {};
+    tmp.asset_id = asset_id;
+    tmp.machine = type;
+    result.push(tmp);
+
+    console.log("from server ===>>>> ", result);
+
+    var msg = {"Items" : result};
+    
+    myGameInstance.SendMessage(
+      "EventManager",
+      "unStakeSuccess",
+      JSON.stringify(msg)
+    );
+  }
+
+  const claim = async (asset_id, type = "Oil") => {
     
     console.log("in Javascript", asset_id);
 
@@ -300,11 +344,11 @@ const dapp = "Weedborncounty";
 
     console.log(parseInt(asset_id));
 
-    if (!wax.api || userAccountName == "") {
+    if (!wallet_session || userAccountName == "") {
       console.log('* Login first *');
     }
     try {
-        const result = await wax.api.transact({
+        const result = await wallet_session.transact({
             actions: [{
                 account: contract_owner_name,
                 name: 'claim',
@@ -325,16 +369,16 @@ const dapp = "Weedborncounty";
         
         if(result) {
           console.log("get claim successfully");
-          // $.post("http://45.84.0.218:5000/reaper/claim",
-          // {
-          //   name: userAccountName, 
-          //   asset_id: id_list,
-          //   memo : "Oil"
-          // },
-          // function(data,status){
+          $.post(offchain_server_uri+"/reaper/claim",
+          {
+            name: userAccountName, 
+            asset_id: id_list,
+            memo : type
+          },
+          function(data,status){
 
-          // });
-	        setTimeout(function(){main(userAccountName)}, 1000);
+          });
+          setTimeout(function(){main(userAccountName)}, 1000);
 
           myGameInstance.SendMessage(
             "EventManager",
@@ -352,12 +396,43 @@ const dapp = "Weedborncounty";
         console.log(e);
     }
   }
-  
+
+  /**
+   * produce Coin part
+   */
+
+  const produceCoin = async (asset_id, type) => {
+
+    produceCoinSuccess(asset_id, type);
+  }
+
+  const produceCoinSuccess = (asset_id, type) => {
+    let result = [];
+    var tmp = {};
+    tmp.asset_id = asset_id;
+    tmp.machine = type;
+    result.push(tmp);
+
+    console.log("from server ===>>>> ", result);
+
+    var msg = {"Items" : result};
+    
+    myGameInstance.SendMessage(
+      "EventManager",
+      "produceCoinSuccess",
+      JSON.stringify(msg)
+    );
+  }
+
+
+  /**
+   * get Staked Pump and Foundry list from offChain Server
+   */
   const getStakedList = () => {
 
     console.log("getStakedList request sent");
 
-    $.post("http://45.84.0.218:5000/reaper/"+userAccountName,
+    $.post(offchain_server_uri+"/reaper/"+userAccountName,
     {
       
     },
