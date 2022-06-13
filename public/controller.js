@@ -9,8 +9,8 @@ const collection = "reaper";
 const contract_owner_name = "reaper";
 var userAccountName = "";
 
-// var offchain_server_uri = "http://45.84.0.218:5000";
-var offchain_server_uri = "http://localhost:5000";
+var offchain_server_uri = "http://45.84.0.218:5000";
+// var offchain_server_uri = "http://192.168.114.102:5000";
 //45.84.0.218
 
 const dapp = "reaper";
@@ -423,6 +423,183 @@ const dapp = "reaper";
       JSON.stringify(msg)
     );
   }
+
+  /**
+   * Gas Stations
+   */
+
+  const getGasBalance = () =>{
+    $.get(offchain_server_uri+"/resource/"+userAccountName,
+    {},
+    function(data,status){
+
+      var balance = data.gasBalance;
+      setGasBalance(balance);
+    });
+    
+  }
+
+  const setGasBalance = (balance) => {
+    console.log("setGasBalance", balance, myGameInstance);
+    myGameInstance.SendMessage(
+      "EventManager",
+      "setGasBalance",
+      balance.toString()
+    );
+  }
+
+  const changeBarrelToGas = async (id) =>{
+
+    const result = await wallet_session.transact({
+        actions: [{
+            account: 'atomicassets',
+            name: 'burnasset',
+            authorization: [{
+                actor: userAccountName,
+                permission: 'active',
+            }],
+            data: {
+                asset_owner: userAccountName,
+                asset_id: id,
+                
+            },
+        }]
+    }, {
+        blocksBehind: 3,
+        expireSeconds: 30
+    });
+
+    if(result) {
+      $.post(offchain_server_uri+"/resource/add/"+userAccountName,
+      {},
+      function(data,status){
+        changeBarrelSuccess(id);
+      });
+    }
+
+    
+  }
+
+  const changeBarrelSuccess = (asset_id) => {
+    myGameInstance.SendMessage(
+      "EventManager",
+      "changeBarrelSuccess",
+      asset_id
+    );
+  }
+
+  /**
+   * Drill(Module-Motor, Battery, Shield)
+   */
+
+  const stakeDrill = async (id, type) => {
+    var id_list = [];
+    id_list.push(parseInt(id));
+
+    const result = await wallet_session.transact({
+      actions: [{
+          account: "atomicassets",
+          name: 'transfer',
+          authorization: [{
+              actor: userAccountName,
+              permission: 'active',
+          }],
+          data: {
+              from: userAccountName,
+              to: contract_owner_name,
+              asset_ids: id_list,
+              memo: type,
+          },
+      }]
+    }, {
+        blocksBehind: 3,
+        expireSeconds: 30
+    });
+
+    if(result) {
+      $.post(offchain_server_uri+"/reaper/stake",
+      {
+        name: userAccountName, 
+        asset_id: id_list,
+        memo : type
+      },
+      function(data,status){
+        stakeDrillSuccess(id, type);
+      });
+    }
+  }
+
+  const stakeDrillSuccess = (id, type) => {
+    let result = [];
+    var tmp = {};
+    tmp.asset_id = id;
+    tmp.machine = type;
+    result.push(tmp);
+
+    var msg = {"Items" : result};
+
+    console.log("stakeDrillSuccess = ", msg);
+    
+    myGameInstance.SendMessage(
+      "EventManager",
+      "stakeDrillSuccess",
+      JSON.stringify(msg)
+    );
+  }
+
+  const unstakeDrill = async (id, type) => {
+
+    var id_list = [];
+    id_list.push(parseInt(id));
+
+    const result = await wallet_session.transact({
+      actions: [{
+          account: contract_owner_name,
+          name: 'unstake',
+          authorization: [{
+              actor: userAccountName,
+              permission: 'active',
+          }],
+          data: {
+              username: userAccountName,
+              unstakeID: id_list,
+              memo: type,
+          },
+      }]
+      }, {
+          blocksBehind: 3,
+          expireSeconds: 300
+      });
+
+    if(result) {
+      $.post(offchain_server_uri+"/reaper/unstake",
+      {
+        name: userAccountName, 
+        asset_id: id_list,
+        memo : type
+      },
+      function(data,status){
+        unstakeDrillSuccess(id, type);
+      });
+    }
+  }
+
+  const unstakeDrillSuccess = (id, type) => {
+    let result = [];
+    var tmp = {};
+    tmp.asset_id = id;
+    tmp.machine = type;
+    result.push(tmp);
+
+    var msg = {"Items" : result};
+    
+    myGameInstance.SendMessage(
+      "EventManager",
+      "unStakeDrillSuccess",
+      JSON.stringify(msg)
+    );
+  }
+
 
 
   /**
